@@ -133,6 +133,46 @@ shared_examples 'Charge API' do
     }
   end
 
+  it "updates a stripe charge" do
+    original = Stripe::Charge.create({
+      amount: 777,
+      currency: 'USD',
+      source: stripe_helper.generate_card_token,
+      description: 'Original description',
+    })
+    charge = Stripe::Charge.retrieve(original.id)
+
+    charge.description = "Updated description"
+    charge.metadata[:receipt_id] = 1234
+    charge.receipt_email = "newemail@email.com"
+    charge.fraud_details = {"user_report" => "safe"}
+    charge.save
+
+    updated = Stripe::Charge.retrieve(original.id)
+
+    expect(updated.description).to eq(charge.description)
+    expect(updated.metadata.to_hash).to eq(charge.metadata.to_hash)
+    expect(updated.receipt_email).to eq(charge.receipt_email)
+    expect(updated.fraud_details.to_hash).to eq(charge.fraud_details.to_hash)
+  end
+
+  it "disallows most parameters on updating a stripe charge" do
+    original = Stripe::Charge.create({
+      amount: 777,
+      currency: 'USD',
+      source: stripe_helper.generate_card_token,
+      description: 'Original description',
+    })
+
+    charge = Stripe::Charge.retrieve(original.id)
+    charge.currency = "CAD"
+    charge.amount = 777
+    charge.source = {any: "source"}
+
+    expect { charge.save }.to raise_error(Stripe::InvalidRequestError, /Received unknown parameters: currency, amount, source/i)
+  end
+
+
   it "creates a unique balance transaction" do
     charge1 = Stripe::Charge.create(
       amount: 999,
@@ -183,6 +223,30 @@ shared_examples 'Charge API' do
       end
     end
   end
+
+  it 'when use starting_after param', live: true do
+    cus = Stripe::Customer.create(
+        description: 'Customer for test@example.com',
+        source: {
+            object: 'card',
+            number: '4242424242424242',
+            exp_month: 12,
+            exp_year: 2024
+        }
+    )
+    12.times do
+      Stripe::Charge.create(customer: cus.id, amount: 100, currency: "usd")
+    end
+
+    all = Stripe::Charge.all
+    default_limit = 10
+    half = Stripe::Charge.all(starting_after: all.data.at(1).id)
+
+    expect(half).to be_a(Stripe::ListObject)
+    expect(half.data.count).to eq(default_limit)
+    expect(half.data.first.id).to eq(all.data.at(2).id)
+  end
+
 
   describe 'captured status value' do
     it "reports captured by default" do

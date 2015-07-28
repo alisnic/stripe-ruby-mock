@@ -4,6 +4,10 @@
 * Issues: https://github.com/rebelidealist/stripe-ruby-mock/issues
 * **CHAT**: https://gitter.im/rebelidealist/stripe-ruby-mock
 
+# REQUEST: Looking for More Core Contributors
+
+This gem has unexpectedly grown in popularity and I've gotten pretty busy, so I'm currently looking for more core contributors to help me out. If you're interested, there is only one requirement: submit a significant enough pull request and have it merged into master (many of you have already done this). Afterwards, ping me in [chat](https://gitter.im/rebelidealist/stripe-ruby-mock) and I will add you as a collaborator.
+
 ## Install
 
 In your gemfile:
@@ -55,6 +59,7 @@ describe MyApp do
   it "creates a stripe customer" do
 
     # This doesn't touch stripe's servers nor the internet!
+    # Specify :source in place of :card (with same value) to return customer with source data
     customer = Stripe::Customer.create({
       email: 'johnny@appleseed.com',
       card: stripe_helper.generate_card_token
@@ -106,15 +111,28 @@ Every once in a while you want to make sure your tests are actually valid. Strip
 Here is an example of setting up your RSpec (2.x) test suite to run live with a command line switch:
 
 ```ruby
+# RSpec 2.x
 RSpec.configure do |c|
   if c.filter_manager.inclusions.keys.include?(:live)
-    puts "Running **live** tests against Stripe..."
     StripeMock.toggle_live(true)
+    puts "Running **live** tests against Stripe..."
   end
 end
 ```
 
 With this you can run live tests by running `rspec -t live`
+
+Here is an example of setting up your RSpec (3.x) test suite to run live with the same command line switch:
+
+```ruby
+# RSpec 3.x
+RSpec.configure do |c|
+  if c.filter_manager.inclusions.rules.include?(:live)
+    StripeMock.toggle_live(true)
+    puts "Running **live** tests against Stripe..."
+  end
+end
+```
 
 ## Mocking Card Errors
 

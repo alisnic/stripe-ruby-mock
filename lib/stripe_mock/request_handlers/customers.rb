@@ -15,7 +15,16 @@ module StripeMock
         sources = []
 
         if params[:source]
-          sources << get_card_by_token(params.delete(:source))
+          new_card =
+            if params[:source].is_a?(Hash)
+              unless params[:source][:object] && params[:source][:number] && params[:source][:exp_month] && params[:source][:exp_year]
+                raise Stripe::InvalidRequestError.new('You must supply a valid card', nil, 400)
+              end
+              card_from_params(params[:source])
+            else
+              get_card_by_token(params.delete(:source))
+            end
+          sources << new_card
           params[:default_source] = sources.first[:id]
         end
 
@@ -36,6 +45,13 @@ module StripeMock
           raise Stripe::InvalidRequestError.new('Received unknown parameter: trial_end', nil, 400)
         end
 
+        if params[:coupon]
+          coupon = coupons[ params[:coupon] ]
+          assert_existence :coupon, params[:coupon], coupon
+
+          add_coupon_to_customer(customers[params[:id]], coupon)
+        end
+
         customers[ params[:id] ]
       end
 
@@ -48,6 +64,13 @@ module StripeMock
           new_card = get_card_by_token(params.delete(:source))
           add_card_to_object(:customer, new_card, cus, true)
           cus[:default_source] = new_card[:id]
+        end
+
+        if params[:coupon]
+          coupon = coupons[ params[:coupon] ]
+          assert_existence :coupon, params[:coupon], coupon
+
+          add_coupon_to_customer(cus, coupon)
         end
 
         cus
